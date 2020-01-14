@@ -54,6 +54,7 @@ import org.eclipse.jgit.lib.RepositoryCache;
 import org.eclipse.jgit.lib.RepositoryCache.FileKey;
 import org.eclipse.jgit.util.FS;
 import org.eclipse.jgit.util.FileUtils;
+import org.eclipse.jgit.vfs.RemoteObjectResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,6 +114,8 @@ public class ObjectDirectory extends FileObjectDatabase {
 
 	final AtomicReference<PackList> packList;
 
+    private final RemoteObjectResolver remoteObjectResolver;
+
 	/**
 	 * Initialize a reference to an on-disk object directory.
 	 *
@@ -132,7 +135,32 @@ public class ObjectDirectory extends FileObjectDatabase {
 	 *             an alternate object cannot be opened.
 	 */
 	public ObjectDirectory(final Config cfg, final File dir,
-			File[] alternatePaths, FS fs, File shallowFile) throws IOException {
+                           File[] alternatePaths, FS fs, File shallowFile) throws IOException {
+        this(cfg, dir, alternatePaths, fs, shallowFile, null);
+    }
+
+	/**
+	 * Initialize a reference to an on-disk object directory.
+	 *
+	 * @param cfg
+	 *            configuration this directory consults for write settings.
+	 * @param dir
+	 *            the location of the <code>objects</code> directory.
+	 * @param alternatePaths
+	 *            a list of alternate object directories
+	 * @param fs
+	 *            the file system abstraction which will be necessary to perform
+	 *            certain file system operations.
+	 * @param shallowFile
+	 *            file which contains IDs of shallow commits, null if shallow
+	 *            commits handling should be turned off
+	 * @param remoteObjectResolver
+	 * @throws java.io.IOException
+	 *             an alternate object cannot be opened.
+	 */
+	public ObjectDirectory(final Config cfg, final File dir,
+                           File[] alternatePaths, FS fs, File shallowFile,
+                           RemoteObjectResolver remoteObjectResolver) throws IOException {
 		config = cfg;
 		objects = dir;
 		infoDirectory = new File(objects, "info"); //$NON-NLS-1$
@@ -153,6 +181,8 @@ public class ObjectDirectory extends FileObjectDatabase {
 				alt[i] = openAlternate(alternatePaths[i]);
 			alternates.set(alt);
 		}
+
+        this.remoteObjectResolver = remoteObjectResolver;
 	}
 
 	/** {@inheritDoc} */
@@ -402,6 +432,18 @@ public class ObjectDirectory extends FileObjectDatabase {
 			}
 		}
 		ObjectLoader ldr = openPackedFromSelfOrAlternate(curs, objectId, null);
+		if (ldr != null) {
+			return ldr;
+		}
+		ldr = openLooseFromSelfOrAlternate(curs, objectId, null);
+		if (ldr != null) {
+			return ldr;
+		}
+		if (remoteObjectResolver == null)
+			return null;
+		if (!remoteObjectResolver.readObject(objectId))
+			return null;
+		ldr = openPackedFromSelfOrAlternate(curs, objectId, null);
 		if (ldr != null) {
 			return ldr;
 		}

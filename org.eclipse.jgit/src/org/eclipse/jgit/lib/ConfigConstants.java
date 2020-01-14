@@ -362,6 +362,9 @@ public final class ConfigConstants {
 	 */
 	public static final String CONFIG_KEY_SUPPORTSATOMICFILECREATION = "supportsatomicfilecreation";
 
+	/** The "virtualizeobjects" key in the "core section" */
+	public static final String CONFIG_KEY_VIRTUALIZEOBJECTS = "virtualizeobjects";
+
 	/**
 	 * The "noprefix" key in the "diff" section
 	 * @since 3.0

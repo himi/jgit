@@ -63,6 +63,7 @@ import org.eclipse.jgit.util.IO;
 import org.eclipse.jgit.util.RawParseUtils;
 import org.eclipse.jgit.util.StringUtils;
 import org.eclipse.jgit.util.SystemReader;
+import org.eclipse.jgit.vfs.RemoteObjectResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -191,11 +192,23 @@ public class FileRepository extends Repository {
 			refs = new RefDirectory(this);
 		}
 
+
+        RemoteObjectResolver resolver = null;
+        if (repoConfig.getBoolean(ConfigConstants.CONFIG_CORE_SECTION,
+                              ConfigConstants.CONFIG_KEY_VIRTUALIZEOBJECTS, false)) {
+            try {
+                resolver = new RemoteObjectResolver(this);
+			} catch (IOException e) {
+				// Do not initialize resolver
+            }
+        }
+
 		objectDatabase = new ObjectDirectory(repoConfig, //
 				options.getObjectDirectory(), //
 				options.getAlternateObjectDirectories(), //
 				getFS(), //
-				new File(getDirectory(), Constants.SHALLOW));
+				new File(getDirectory(), Constants.SHALLOW),
+                  resolver);
 
 		if (objectDatabase.exists()) {
 			if (repositoryFormatVersion > 1)
